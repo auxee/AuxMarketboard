@@ -8,6 +8,7 @@ public sealed class ItemResolver
     private readonly IDataManager dataManager;
     private Dictionary<uint, string>? namesById;
     private List<(uint Id, string Name)>? indexedItems;
+    private Dictionary<string, List<(uint Id, string Name)>>? normalizedItems;
     private Dictionary<uint, (uint ItemId, string ItemName, int Yield)>? recipeToResultItem;
 
     public ItemResolver(IDataManager dataManager)
@@ -28,9 +29,69 @@ public sealed class ItemResolver
             return indexedItems.Take(maxResults).ToList();
         }
 
-        var trimmed = filter.Trim();
-        var exact = indexedItems.Where(x => x.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase)).Take(maxResults).ToList();
-        return exact;
+        var trimmed = CleanupInput(filter);
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return indexedItems.Take(maxResults).ToList();
+        }
+
+        var seen = new HashSet<uint>();
+        var results = new List<(uint Id, string Name)>();
+
+        if (TryParseItemId(trimmed, out var parsedId) && namesById is not null && namesById.TryGetValue(parsedId, out var parsedName))
+        {
+            results.Add((parsedId, parsedName));
+            seen.Add(parsedId);
+        }
+
+        foreach (var item in indexedItems.Where(x => x.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (seen.Add(item.Id))
+            {
+                results.Add(item);
+            }
+        }
+
+        foreach (var item in indexedItems.Where(x => x.Name.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (seen.Add(item.Id))
+            {
+                results.Add(item);
+            }
+        }
+
+        var normalizedFilter = NormalizeLookupToken(trimmed);
+        if (!string.IsNullOrWhiteSpace(normalizedFilter))
+        {
+            foreach (var item in indexedItems.Where(x => NormalizeLookupToken(x.Name).StartsWith(normalizedFilter, StringComparison.Ordinal)))
+            {
+                if (seen.Add(item.Id))
+                {
+                    results.Add(item);
+                }
+            }
+        }
+
+        foreach (var item in indexedItems.Where(x => x.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (seen.Add(item.Id))
+            {
+                results.Add(item);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(normalizedFilter))
+        {
+            foreach (var item in indexedItems.Where(x => NormalizeLookupToken(x.Name).Contains(normalizedFilter, StringComparison.Ordinal)))
+            {
+                if (seen.Add(item.Id))
+                {
+                    results.Add(item);
+                }
+            }
+        }
+
+        return results.Take(maxResults).ToList();
     }
 
     public bool TryGetName(uint itemId, out string name)
@@ -52,23 +113,38 @@ public sealed class ItemResolver
         itemId = 0;
         name = string.Empty;
 
-        if (uint.TryParse(value, out var parsedId) && namesById is not null && namesById.TryGetValue(parsedId, out var parsedName))
+        var normalizedInput = CleanupInput(value);
+        if (string.IsNullOrWhiteSpace(normalizedInput))
+        {
+            return false;
+        }
+
+        if (TryParseItemId(normalizedInput, out var parsedId) && namesById is not null && namesById.TryGetValue(parsedId, out var parsedName))
         {
             itemId = parsedId;
             name = parsedName;
             return true;
         }
 
-        if (indexedItems is null)
+        if (indexedItems is null || normalizedItems is null)
         {
             return false;
         }
 
-        var match = indexedItems.FirstOrDefault(x => x.Name.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase));
+        var match = indexedItems.FirstOrDefault(x => x.Name.Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
         if (match.Id != 0)
         {
             itemId = match.Id;
             name = match.Name;
+            return true;
+        }
+
+        var key = NormalizeLookupToken(normalizedInput);
+        if (!string.IsNullOrWhiteSpace(key) && normalizedItems.TryGetValue(key, out var candidates) && candidates.Count > 0)
+        {
+            var selected = candidates.OrderBy(x => x.Name.Length).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).First();
+            itemId = selected.Id;
+            name = selected.Name;
             return true;
         }
 
@@ -95,7 +171,7 @@ public sealed class ItemResolver
 
     private void EnsureIndex()
     {
-        if (indexedItems is not null && namesById is not null)
+        if (indexedItems is not null && namesById is not null && normalizedItems is not null)
         {
             return;
         }
@@ -104,26 +180,49 @@ public sealed class ItemResolver
         var recipeSheet = dataManager.GetExcelSheet<Recipe>();
         namesById = new Dictionary<uint, string>();
         indexedItems = new List<(uint Id, string Name)>();
+        normalizedItems = new Dictionary<string, List<(uint Id, string Name)>>(StringComparer.Ordinal);
         recipeToResultItem = new Dictionary<uint, (uint ItemId, string ItemName, int Yield)>();
 
-        foreach (var row in sheet)
+        if (sheet is not null)
         {
-            if (row.RowId == 0)
+            foreach (var row in sheet)
             {
-                continue;
-            }
+                if (row.RowId == 0)
+                {
+                    continue;
+                }
 
-            var name = row.Name.ToString().Trim();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
+                var name = row.Name.ToString().Trim();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
 
-            namesById[row.RowId] = name;
-            indexedItems.Add((row.RowId, name));
+                namesById[row.RowId] = name;
+                indexedItems.Add((row.RowId, name));
+
+                var key = NormalizeLookupToken(name);
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                if (!normalizedItems.TryGetValue(key, out var list))
+                {
+                    list = new List<(uint Id, string Name)>();
+                    normalizedItems[key] = list;
+                }
+
+                list.Add((row.RowId, name));
+            }
         }
 
         indexedItems = indexedItems.OrderBy(x => x.Name).ToList();
+
+        if (recipeSheet is null)
+        {
+            return;
+        }
 
         foreach (var recipe in recipeSheet)
         {
@@ -140,5 +239,68 @@ public sealed class ItemResolver
 
             recipeToResultItem[recipe.RowId] = (resultItemId, resultName, recipe.AmountResult);
         }
+    }
+
+    private static string CleanupInput(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = value.Trim();
+        cleaned = cleaned.Trim('"', '\'', '`', '[', ']');
+        return string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static bool TryParseItemId(string value, out uint itemId)
+    {
+        itemId = 0;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (uint.TryParse(value.Trim(), out itemId))
+        {
+            return itemId > 0;
+        }
+
+        var matches = System.Text.RegularExpressions.Regex.Matches(
+            value,
+            @"(?<!\d)(?:item\s*id|id|#)\s*[:=]?\s*(\d+)(?!\d)|\((\d+)\)");
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            var token = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+            if (uint.TryParse(token, out itemId) && itemId > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeLookupToken(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = CleanupInput(value);
+        cleaned = cleaned.ToLowerInvariant()
+            .Replace("(hq)", string.Empty)
+            .Replace("[hq]", string.Empty)
+            .Replace("hq", string.Empty)
+            .Replace("nq", string.Empty)
+            .Replace("’", "'")
+            .Replace("'", string.Empty)
+            .Replace("-", string.Empty)
+            .Replace("_", string.Empty)
+            .Replace(",", string.Empty)
+            .Replace(".", string.Empty);
+
+        return string.Concat(cleaned.Where(char.IsLetterOrDigit));
     }
 }

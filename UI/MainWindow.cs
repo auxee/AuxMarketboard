@@ -1001,26 +1001,73 @@ public sealed class MainWindow : Window, IDisposable
     {
         itemKey = string.Empty;
         quantity = 1;
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
+
+        line = StripBulletPrefix(line.Trim());
 
         var csv = line.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (csv.Length >= 2 && int.TryParse(csv[^1], out quantity))
+        if (csv.Length >= 2 && TryParsePositiveInt(csv[^1], out quantity))
         {
             itemKey = string.Join(",", csv.Take(csv.Length - 1)).Trim();
             quantity = Math.Max(1, quantity);
             return !string.IsNullOrWhiteSpace(itemKey);
         }
 
-        var match = Regex.Match(line, @"^(?<item>.+?)\s*[xX]\s*(?<qty>\d+)$");
-        if (match.Success)
+        var match = Regex.Match(line, @"^(?<item>.+?)\s*[xX×]\s*(?<qty>\d+)$");
+        if (match.Success && TryParsePositiveInt(match.Groups["qty"].Value, out quantity))
         {
             itemKey = match.Groups["item"].Value.Trim();
-            quantity = Math.Max(1, int.Parse(match.Groups["qty"].Value));
+            return !string.IsNullOrWhiteSpace(itemKey);
+        }
+
+        match = Regex.Match(line, @"^(?<qty>\d+)\s*[xX×]\s*(?<item>.+?)$");
+        if (match.Success && TryParsePositiveInt(match.Groups["qty"].Value, out quantity))
+        {
+            itemKey = match.Groups["item"].Value.Trim();
+            return !string.IsNullOrWhiteSpace(itemKey);
+        }
+
+        match = Regex.Match(line, @"^(?<item>.+?)\s*[:\-]\s*(?<qty>\d+)$");
+        if (match.Success && TryParsePositiveInt(match.Groups["qty"].Value, out quantity))
+        {
+            itemKey = match.Groups["item"].Value.Trim();
             return !string.IsNullOrWhiteSpace(itemKey);
         }
 
         itemKey = line.Trim();
         quantity = 1;
         return !string.IsNullOrWhiteSpace(itemKey);
+    }
+
+    private static string StripBulletPrefix(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = Regex.Replace(line, @"^\s*(?:[-*•]\s+|\d+[.)]\s+)", string.Empty);
+        return cleaned.Trim();
+    }
+
+    private static bool TryParsePositiveInt(string value, out int quantity)
+    {
+        quantity = 0;
+        if (!long.TryParse(value.Trim(), out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed <= 0)
+        {
+            return false;
+        }
+
+        quantity = parsed > int.MaxValue ? int.MaxValue : (int)parsed;
+        return true;
     }
 
     private static ListEntry CloneEntry(ListEntry source)
