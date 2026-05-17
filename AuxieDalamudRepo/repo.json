@@ -1,0 +1,51 @@
+[
+  {
+    "Author": "Auxie",
+    "Name": "AuxMarketboard",
+    "InternalName": "AuxMarketboard",
+    "IconUrl": "AuxMarketboard/plugin_icon.png",
+    "AssemblyVersion": "0.1.0.0",
+    "TestingAssemblyVersion": null,
+    "RepoUrl": "https://github.com/Auxie/AuxMarketboard",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "Punchline": "Price imported and custom item lists from Universalis",
+    "Description": "Builds an item list manually or from artisan/teamcraft link imports, fetches marketboard prices from Universalis, and shows per-item plus total cost.",
+    "Tags": [
+      "marketboard",
+      "universalis",
+      "artisan",
+      "crafting"
+    ],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/Auxie/AuxMarketboard/releases/latest/download/AuxMarketboard.zip",
+    "DownloadLinkTesting": "https://github.com/Auxie/AuxMarketboard/releases/latest/download/AuxMarketboard.zip",
+    "DownloadLinkUpdate": "https://github.com/Auxie/AuxMarketboard/releases/latest/download/AuxMarketboard.zip",
+    "LastUpdate": "0"
+  },
+  {
+    "Author": "Auxie",
+    "Name": "AuxEmotion",
+    "InternalName": "AuxEmotion",
+    "AssemblyVersion": "0.1.0.0",
+    "TestingAssemblyVersion": null,
+    "RepoUrl": "https://github.com/Auxie/AuxEmotion",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "Punchline": "Auto-react to emotes with emote, expression, and macro responses.",
+    "Description": "Credit to FoxShadow10 for the original AutoEmotion plugin. This version builds on that base and adds macro-slot responses directly in the Emote Reaction table, alongside emote and expression reactions.",
+    "Tags": [
+      "emote",
+      "macro",
+      "automation",
+      "rp"
+    ],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/Auxie/AuxEmotion/releases/latest/download/AuxEmotion.zip",
+    "DownloadLinkTesting": "https://github.com/Auxie/AuxEmotion/releases/latest/download/AuxEmotion.zip",
+    "DownloadLinkUpdate": "https://github.com/Auxie/AuxEmotion/releases/latest/download/AuxEmotion.zip",
+    "LastUpdate": "0"
+  }
+]
