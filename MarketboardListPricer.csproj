@@ -1,0 +1,10 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <AssemblyName>AuxMarketboard</AssemblyName>
+    <RootNamespace>AuxMarketboard</RootNamespace>
+    <Version>0.1.0.0</Version>
+    <Description>Track marketboard prices for item lists via Universalis.</Description>
+    <Authors>Auxie</Authors>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
