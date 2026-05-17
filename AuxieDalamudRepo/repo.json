@@ -3,7 +3,7 @@
     "Author": "Auxie",
     "Name": "AuxMarketboard",
     "InternalName": "AuxMarketboard",
-    "IconUrl": "AuxMarketboard/plugin_icon.png",
+    "IconUrl": "https://raw.githubusercontent.com/auxee/AuxMarketboard/main/AuxMarketboard/plugin_icon.png",
     "AssemblyVersion": "0.1.0.0",
     "TestingAssemblyVersion": null,
     "RepoUrl": "https://github.com/Auxie/AuxMarketboard",
