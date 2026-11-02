@@ -1,45 +1,34 @@
 # AuxMarketboard
 
-Dalamud plugin scaffold for pricing item lists from Universalis.
+A Dalamud plugin that prices a shopping list with live Universalis data and works out where to buy it.
 
-## Features
+Open it with `/mmb`.
 
-- Add items manually with a searchable dropdown and quantity.
-- Import list text in either:
-  - artisan/teamcraft link import (`Recipes` recipe IDs are resolved to output item IDs when present), or
-  - plain text lines (`Item Name x3`, `12345,2`, `Item Name,4`).
-- Fetch current marketboard data from Universalis API:
-  - `GET /api/v2/{worldDcRegion}/{itemIds}`
-  - Uses `listings` and `entries` query parameters to fetch enough recent values.
-- HQ/NQ filter toggles (`hq=true`, `hq=false`, or mixed).
-- Optional auto-refresh interval.
-- Simple rate-limit handling (request pacing + retry on HTTP 429).
-- Row editing controls (change qty inline, +/- buttons, remove).
-- Show per-item recent unit prices and calculated subtotal.
-- Show overall total in gil for the whole list.
+## What it does
 
-## Universalis API notes
+- Keeps a shopping list of items with a quantity and an optional HQ-only flag. The list is saved and restored between sessions.
+- Search only offers marketable items. Pressing Enter in the search adds the top match.
+- Imports Teamcraft links, Artisan JSON exports and plain lines such as `Item x3`, `3x Item`, `Item: 3`, `Item,3` and `12345,3`. Imported quantities add onto what is already in the list, and anything that cannot be resolved or cannot be sold on the market is skipped and counted.
+- Prices come from your home world: pick World, Data Center or Region and the plugin looks up the matching scope from Universalis. Log in once so it knows your home world; the last known world is remembered.
+- Every listing is a whole stack, so totals are worked out by choosing the cheapest combination of stacks that covers the quantity you need, including the 5% market tax. Overbuy and shortfalls are shown.
+- The Buy plan tab groups purchases by world, with the home data center first. Setting Max worlds limits how many worlds the plan may use and shows how much more that costs than the cheapest unrestricted plan.
+- Prices refresh when you press Refresh, change the list or change the scope. There is no timed refresh.
 
-- Base URL: `https://universalis.app/api/v2`
-- Official docs: [https://docs.universalis.app](https://docs.universalis.app)
-- This project currently uses the "Market board current data" endpoint so listings/recent history are available for quantity-based pricing.
+## Data and limits
+
+- Prices are fetched from the [Universalis API](https://docs.universalis.app) in chunks of up to 100 items, with at most four requests in flight. Rate limits are respected and failed requests are retried.
+- Worlds, data centers and regions come from Universalis rather than a built-in table.
 
 ## Build
 
-1. Install **.NET 10 SDK** (required by `Dalamud.NET.Sdk/15.0.0`).
-2. Install Dalamud SDK resolver/workload:
-   - Either clone and use a known-good Dalamud plugin template repo, or
-   - set up the local Dalamud SDK feed as documented on [dalamud.dev](https://dalamud.dev/plugin-development/).
-3. Ensure NuGet source exists (`nuget.org`) and check setup with:
+1. Install the .NET 10 SDK.
+2. Set up the Dalamud dev hooks as described on [dalamud.dev](https://dalamud.dev/plugin-development/).
+3. Build:
 
 ```powershell
-dotnet --list-sdks
-dotnet nuget list source
-dotnet restore
+dotnet build -c Release
 ```
 
-4. Build with:
+The plugin is written to `bin/Release/AuxMarketboard.dll` and the release package to `bin/Release/AuxMarketboard/latest.zip`. Load the DLL as a dev plugin in game.
 
-```powershell
-dotnet build
-```
+The interface uses the shared `AuxUi` kit in `AuxUi/`, with the Lato font licensed under the SIL Open Font License (`AuxUi/Fonts/OFL.txt`).

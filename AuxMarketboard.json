@@ -1,8 +1,8 @@
 {
   "Author": "Auxie",
   "Name": "AuxMarketboard",
-  "Punchline": "Price imported and custom item lists from Universalis",
-  "Description": "Builds an item list manually or from artisan/teamcraft link imports, fetches current marketboard prices from Universalis, and shows per-item plus total cost.",
+  "Punchline": "Price shopping lists by whole stack with tax and plan which worlds to buy from",
+  "Description": "Build a shopping list by search or by importing Teamcraft links, Artisan exports and item lines. Prices come from live Universalis listings, bought as whole stacks including the 5% market tax, and are turned into a per-world buy plan with an optional limit on how many worlds to use.",
   "RepoUrl": "https://github.com/auxee/AuxMarketboard",
   "IconUrl": "https://raw.githubusercontent.com/auxee/AuxMarketboard/main/plugin_icon.png",
   "ApplicableVersion": "any",
