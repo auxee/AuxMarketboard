@@ -402,6 +402,20 @@ public static class AuxWidgets
             ImGui.PopID();
         }
 
+        var windowMin = ImGui.GetWindowPos();
+        var windowMax = windowMin + ImGui.GetWindowSize();
+        if (lineY - 1f < windowMin.Y || lineY + 1f > windowMax.Y)
+        {
+            return;
+        }
+
+        lineLeft = Math.Max(lineLeft, windowMin.X);
+        lineRight = Math.Min(lineRight, windowMax.X);
+        if (lineRight <= lineLeft)
+        {
+            return;
+        }
+
         drawList.PushClipRect(new Vector2(lineLeft, lineY - 1f), new Vector2(lineRight, lineY + 1f), false);
         drawList.AddLine(new Vector2(lineLeft, lineY - 0.5f), new Vector2(lineRight, lineY - 0.5f), ImGui.GetColorU32(AuxTheme.Rule));
         drawList.PopClipRect();
