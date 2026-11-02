@@ -202,7 +202,7 @@ internal sealed class BuyPlanTab
         var purchases = world.Purchases.OrderByDescending(x => x.Cost).ToList();
         UiFormat.RowGauges(purchases.Select(x => (float)x.Cost / subtotal).ToList());
 
-        if (!AuxWidgets.BeginTable("##purchases", 4))
+        if (!AuxWidgets.BeginTable("##purchases", 4, padOuter: true))
         {
             return;
         }

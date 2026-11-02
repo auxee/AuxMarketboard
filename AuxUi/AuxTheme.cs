@@ -20,11 +20,11 @@ public static class AuxTheme
     public static readonly Vector4 Rule = Rgba(255, 255, 255, 0.10f);
     public static readonly Vector4 EdgeLine = Rgba(255, 255, 255, 0.06f);
     public static readonly Vector4 DropdownBg = Rgba(58, 58, 58, 0.98f);
-    public static readonly Vector4 Accent = Hex(0x2E7D32);
-    public static readonly Vector4 AccentHover = Hex(0x388E3C);
-    public static readonly Vector4 AccentDeep = Hex(0x1B5E20);
-    public static readonly Vector4 AccentSelection = Hex(0x2E7D32, 0.35f);
-    public static readonly Vector4 OnAccent = Hex(0xFFFFFF);
+    public static readonly Vector4 Accent = Hex(0xA5D6A7);
+    public static readonly Vector4 AccentHover = Hex(0xB9E1BB);
+    public static readonly Vector4 AccentDeep = Hex(0x8BC48E);
+    public static readonly Vector4 AccentSelection = Hex(0xA5D6A7, 0.28f);
+    public static readonly Vector4 OnAccent = Hex(0x1E2B1F);
     public static readonly Vector4 Danger = Hex(0xEF5350);
     public static readonly Vector4 Transparent = new(0f, 0f, 0f, 0f);
 
@@ -80,7 +80,7 @@ public static class AuxTheme
             colors
                 .Push(ImGuiCol.Text, ContentFg)
                 .Push(ImGuiCol.TextDisabled, MutedFg)
-                .Push(ImGuiCol.TextSelectedBg, WithAlpha(Accent, 0.55f))
+                .Push(ImGuiCol.TextSelectedBg, WithAlpha(Accent, 0.35f))
                 .Push(ImGuiCol.WindowBg, ContentBg)
                 .Push(ImGuiCol.ChildBg, Transparent)
                 .Push(ImGuiCol.PopupBg, DropdownBg)

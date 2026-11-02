@@ -334,9 +334,14 @@ public static class AuxWidgets
 
     public static bool ComboItem(string label, bool selected) => RoundedSelectable(label, selected);
 
-    public static bool BeginTable(string id, int columns, bool scrollingRows = false)
+    public static bool BeginTable(string id, int columns, bool scrollingRows = false, bool padOuter = false)
     {
         var flags = scrollingRows ? ImGuiTableFlags.ScrollY | ImGuiTableFlags.RowBg : ImGuiTableFlags.None;
+        if (padOuter)
+        {
+            flags |= ImGuiTableFlags.PadOuterX;
+        }
+
         return ImGui.BeginTable(id, columns, flags);
     }
 

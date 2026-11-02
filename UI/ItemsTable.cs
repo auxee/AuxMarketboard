@@ -8,7 +8,7 @@ namespace AuxMarketboard.UI;
 
 internal sealed class ItemsTable
 {
-        private static readonly string[] NoHints = Array.Empty<string>();
+    private static readonly string[] NoHints = Array.Empty<string>();
 
     private readonly MarketService service;
     private readonly ItemResolver resolver;
@@ -61,7 +61,7 @@ internal sealed class ItemsTable
                 ? (float)cheapest.Cost / listTotal
                 : 0f).ToList());
 
-        if (!AuxWidgets.BeginTable("##items", 6))
+        if (!AuxWidgets.BeginTable("##items", 6, padOuter: true))
         {
             return;
         }
