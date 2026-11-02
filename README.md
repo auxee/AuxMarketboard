@@ -18,17 +18,3 @@ Open it with `/mmb`.
 
 - Prices are fetched from the [Universalis API](https://docs.universalis.app) in chunks of up to 100 items, with at most four requests in flight. Rate limits are respected and failed requests are retried.
 - Worlds, data centers and regions come from Universalis rather than a built-in table.
-
-## Build
-
-1. Install the .NET 10 SDK.
-2. Set up the Dalamud dev hooks as described on [dalamud.dev](https://dalamud.dev/plugin-development/).
-3. Build:
-
-```powershell
-dotnet build -c Release
-```
-
-The plugin is written to `bin/Release/AuxMarketboard.dll` and the release package to `bin/Release/AuxMarketboard/latest.zip`. Load the DLL as a dev plugin in game.
-
-The interface uses the shared `AuxUi` kit in `AuxUi/`, with the Lato font licensed under the SIL Open Font License (`AuxUi/Fonts/OFL.txt`).
