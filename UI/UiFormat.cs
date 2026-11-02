@@ -120,12 +120,26 @@ internal static class UiFormat
         var start = ImGui.GetCursorScreenPos();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (MarkerWidth + MarkerGap) * Scale);
         ImGui.TextUnformatted(text);
+        if (!ImGui.IsItemVisible())
+        {
+            return;
+        }
+
         var centerY = MathF.Floor((ImGui.GetItemRectMin().Y + ImGui.GetItemRectMax().Y) / 2f);
         var width = MarkerWidth * Scale;
         var half = MarkerHeight * Scale / 2f;
+        var windowTop = ImGui.GetWindowPos().Y;
+        var windowBottom = windowTop + ImGui.GetWindowSize().Y;
+        var top = Math.Max(centerY - half, windowTop);
+        var bottom = Math.Min(centerY + half, windowBottom);
+        if (bottom <= top)
+        {
+            return;
+        }
+
         ImGui.GetWindowDrawList().AddRectFilled(
-            new Vector2(start.X, centerY - half),
-            new Vector2(start.X + width, centerY + half),
+            new Vector2(start.X, top),
+            new Vector2(start.X + width, bottom),
             ImGui.GetColorU32(AuxTheme.Accent),
             width / 2f);
     }
