@@ -198,9 +198,7 @@ internal sealed class BuyPlanTab
     private void DrawPurchases(PlanWorld world, Dictionary<uint, ItemSummary> itemSummaries)
     {
         var scale = UiFormat.Scale;
-        var subtotal = Math.Max(1L, world.Subtotal);
         var purchases = world.Purchases.OrderByDescending(x => x.Cost).ToList();
-        UiFormat.RowGauges(purchases.Select(x => (float)x.Cost / subtotal).ToList());
 
         if (!AuxWidgets.BeginTable("##purchases", 4, padOuter: true))
         {
@@ -219,7 +217,7 @@ internal sealed class BuyPlanTab
 
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(resolver.TryGetName(purchase.ItemId, out var name) ? name : $"Item {purchase.ItemId}");
+            UiFormat.MarkedText(resolver.TryGetName(purchase.ItemId, out var name) ? name : $"Item {purchase.ItemId}");
 
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();

@@ -53,13 +53,7 @@ internal sealed class ItemsTable
         var scale = UiFormat.Scale;
         var snapshot = service.Snapshot;
         var busy = service.State.Phase is RefreshPhase.Waiting or RefreshPhase.Fetching;
-        var listTotal = Math.Max(1L, snapshot.Plan.CheapestTotal);
         uint removeId = 0;
-
-        UiFormat.RowGauges(items.Select(x =>
-            snapshot.CheapestById.TryGetValue(x.ItemId, out var cheapest) && snapshot.Covers(x)
-                ? (float)cheapest.Cost / listTotal
-                : 0f).ToList());
 
         if (!AuxWidgets.BeginTable("##items", 6, padOuter: true))
         {
@@ -84,7 +78,7 @@ internal sealed class ItemsTable
 
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(resolver.TryGetName(entry.ItemId, out var name) ? name : $"Item {entry.ItemId}");
+            UiFormat.MarkedText(resolver.TryGetName(entry.ItemId, out var name) ? name : $"Item {entry.ItemId}");
 
             ImGui.TableNextColumn();
             var quantity = entry.Quantity;

@@ -11,6 +11,9 @@ internal static class UiFormat
     private const float TabPaddingX = 14f;
     private const float TabGap = 4f;
     private const float ChipPaddingY = 3f;
+    private const float MarkerWidth = 3f;
+    private const float MarkerHeight = 12f;
+    private const float MarkerGap = 6f;
     private const string Ellipsis = "…";
 
     public static float Scale => ImGuiHelpers.GlobalScale;
@@ -112,37 +115,18 @@ internal static class UiFormat
         ImGui.TextColored(color, text);
     }
 
-    public static void RowGauges(IReadOnlyList<float> fractions)
+    public static void MarkedText(string text)
     {
-        var origin = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
-        var rowHeight = TableRowHeight();
-        var top = origin.Y + TableHeaderHeight();
-        var inset = Scale;
-        var color = AuxTheme.WithAlpha(AuxTheme.Accent, 0.30f);
-        for (var i = 0; i < fractions.Count; i++)
-        {
-            if (fractions[i] <= 0f)
-            {
-                continue;
-            }
-
-            var rowTop = top + i * rowHeight;
-            AuxWidgets.Gauge(
-                new Vector2(origin.X, rowTop + inset),
-                new Vector2(origin.X + width, rowTop + rowHeight - inset),
-                fractions[i],
-                color);
-        }
+        var start = ImGui.GetCursorScreenPos();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (MarkerWidth + MarkerGap) * Scale);
+        ImGui.TextUnformatted(text);
+        var centerY = MathF.Floor((ImGui.GetItemRectMin().Y + ImGui.GetItemRectMax().Y) / 2f);
+        var width = MarkerWidth * Scale;
+        var half = MarkerHeight * Scale / 2f;
+        ImGui.GetWindowDrawList().AddRectFilled(
+            new Vector2(start.X, centerY - half),
+            new Vector2(start.X + width, centerY + half),
+            ImGui.GetColorU32(AuxTheme.Accent),
+            width / 2f);
     }
-
-    public static float TableHeaderHeight()
-    {
-        using (AuxFonts.PushSmallBold())
-        {
-            return ImGui.GetTextLineHeight() + AuxTheme.CellPadding.Y * 2f;
-        }
-    }
-
-    public static float TableRowHeight() => ImGui.GetFrameHeight() + AuxTheme.CellPadding.Y * 2f;
 }
