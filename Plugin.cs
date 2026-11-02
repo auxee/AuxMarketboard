@@ -1,28 +1,18 @@
-using Dalamud.Game.Command;
 using Dalamud.IoC;
-using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using AuxMarketboard.Services;
-using AuxMarketboard.UI;
 
 namespace AuxMarketboard;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    private const string CommandName = "/mmb";
-
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
-    private readonly WindowSystem windowSystem = new("AuxMarketboard");
-    private readonly MainWindow mainWindow;
+    private readonly MarketService marketService;
     private readonly UniversalisClient universalisClient;
-    private readonly ItemResolver itemResolver;
 
     public Configuration Configuration { get; }
 
@@ -30,63 +20,37 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Initialize(PluginInterface);
-        if (Configuration.Version < 2)
+        if (Configuration.Migrate())
         {
-            Configuration.AutoRefreshEnabled = true;
-            Configuration.Version = 2;
             Configuration.Save();
         }
 
-        if (Configuration.AutoDetectWorldOnStartup)
-        {
-            var detected = PlayerState.IsLoaded && PlayerState.HomeWorld.IsValid
-                ? PlayerState.HomeWorld.Value.Name.ToString()
-                : null;
-            if (!string.IsNullOrWhiteSpace(detected))
-            {
-                Configuration.WorldOrDataCenter = detected;
-                Configuration.Save();
-            }
-        }
-        else if (string.IsNullOrWhiteSpace(Configuration.WorldOrDataCenter))
-        {
-            Configuration.WorldOrDataCenter = "Oceania";
-            Configuration.Save();
-        }
-
-        universalisClient = new UniversalisClient();
-        itemResolver = new ItemResolver(DataManager);
-        mainWindow = new MainWindow(Configuration, universalisClient, itemResolver);
-
-        windowSystem.AddWindow(mainWindow);
-
-        PluginInterface.UiBuilder.Draw += windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
-
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open AuxMarketboard",
-        });
+        var version = typeof(Plugin).Assembly.GetName().Version?.ToString(3) ?? "0.2.0";
+        universalisClient = new UniversalisClient(version);
+        marketService = new MarketService(
+            Configuration,
+            universalisClient,
+            new WorldDirectory(),
+            ReadHomeWorld,
+            (message, exception) => Log.Error(exception, message));
+        marketService.StartDirectoryLoad();
     }
 
     public void Dispose()
     {
-        CommandManager.RemoveHandler(CommandName);
-        PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
-        PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
-
-        windowSystem.RemoveAllWindows();
-        mainWindow.Dispose();
+        marketService.Dispose();
         universalisClient.Dispose();
     }
 
-    private void OnCommand(string command, string args)
+    private static HomeWorld? ReadHomeWorld()
     {
-        ToggleMainUi();
-    }
+        if (!PlayerState.IsLoaded || !PlayerState.HomeWorld.IsValid)
+        {
+            return null;
+        }
 
-    private void ToggleMainUi()
-    {
-        mainWindow.Toggle();
+        var world = PlayerState.HomeWorld.Value;
+        var dataCenter = world.DataCenter.IsValid ? world.DataCenter.Value.Name.ToString() : string.Empty;
+        return new HomeWorld(PlayerState.HomeWorld.RowId, world.Name.ToString(), dataCenter);
     }
 }
