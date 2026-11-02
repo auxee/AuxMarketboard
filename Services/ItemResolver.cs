@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 
@@ -6,89 +7,74 @@ namespace AuxMarketboard.Services;
 public sealed class ItemResolver
 {
     private readonly IDataManager dataManager;
-    private Dictionary<uint, string>? namesById;
-    private List<(uint Id, string Name)>? indexedItems;
-    private Dictionary<string, List<(uint Id, string Name)>>? normalizedItems;
-    private Dictionary<uint, (uint ItemId, string ItemName, int Yield)>? recipeToResultItem;
+    private readonly object indexLock = new();
+    private Index? index;
 
     public ItemResolver(IDataManager dataManager)
     {
         this.dataManager = dataManager;
     }
 
+    public void Warm()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                GetIndex();
+            }
+            catch (Exception)
+            {
+            }
+        });
+    }
+
     public IReadOnlyList<(uint Id, string Name)> GetSearchMatches(string filter, int maxResults = 100)
     {
-        EnsureIndex();
-        if (indexedItems is null)
-        {
-            return Array.Empty<(uint Id, string Name)>();
-        }
-
-        if (string.IsNullOrWhiteSpace(filter))
-        {
-            return indexedItems.Take(maxResults).ToList();
-        }
-
+        var current = GetIndex();
         var trimmed = CleanupInput(filter);
         if (string.IsNullOrWhiteSpace(trimmed))
         {
-            return indexedItems.Take(maxResults).ToList();
+            return current.Items.Take(maxResults).Select(x => (x.Id, x.Name)).ToList();
         }
 
         var seen = new HashSet<uint>();
         var results = new List<(uint Id, string Name)>();
 
-        if (TryParseItemId(trimmed, out var parsedId) && namesById is not null && namesById.TryGetValue(parsedId, out var parsedName))
+        void Collect(Func<IndexedItem, bool> predicate)
+        {
+            foreach (var item in current.Items)
+            {
+                if (results.Count >= maxResults)
+                {
+                    return;
+                }
+
+                if (predicate(item) && seen.Add(item.Id))
+                {
+                    results.Add((item.Id, item.Name));
+                }
+            }
+        }
+
+        if (TryParseItemId(trimmed, out var parsedId) && current.NamesById.TryGetValue(parsedId, out var parsedName))
         {
             results.Add((parsedId, parsedName));
             seen.Add(parsedId);
         }
 
-        foreach (var item in indexedItems.Where(x => x.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
-        {
-            if (seen.Add(item.Id))
-            {
-                results.Add(item);
-            }
-        }
-
-        foreach (var item in indexedItems.Where(x => x.Name.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase)))
-        {
-            if (seen.Add(item.Id))
-            {
-                results.Add(item);
-            }
-        }
-
         var normalizedFilter = NormalizeLookupToken(trimmed);
+        Collect(x => x.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+        Collect(x => x.Name.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(normalizedFilter))
         {
-            foreach (var item in indexedItems.Where(x => NormalizeLookupToken(x.Name).StartsWith(normalizedFilter, StringComparison.Ordinal)))
-            {
-                if (seen.Add(item.Id))
-                {
-                    results.Add(item);
-                }
-            }
+            Collect(x => x.Key.StartsWith(normalizedFilter, StringComparison.Ordinal));
         }
 
-        foreach (var item in indexedItems.Where(x => x.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase)))
-        {
-            if (seen.Add(item.Id))
-            {
-                results.Add(item);
-            }
-        }
-
+        Collect(x => x.Name.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(normalizedFilter))
         {
-            foreach (var item in indexedItems.Where(x => NormalizeLookupToken(x.Name).Contains(normalizedFilter, StringComparison.Ordinal)))
-            {
-                if (seen.Add(item.Id))
-                {
-                    results.Add(item);
-                }
-            }
+            Collect(x => x.Key.Contains(normalizedFilter, StringComparison.Ordinal));
         }
 
         return results.Take(maxResults).ToList();
@@ -96,10 +82,9 @@ public sealed class ItemResolver
 
     public bool TryGetName(uint itemId, out string name)
     {
-        EnsureIndex();
-        if (namesById is not null && namesById.TryGetValue(itemId, out var resolved))
+        if (GetIndex().NamesById.TryGetValue(itemId, out var resolved))
         {
-            name = resolved ?? string.Empty;
+            name = resolved;
             return true;
         }
 
@@ -107,9 +92,11 @@ public sealed class ItemResolver
         return false;
     }
 
+    public bool CanBeHq(uint itemId) => GetIndex().HqCapable.Contains(itemId);
+
     public bool TryResolveByText(string value, out uint itemId, out string name)
     {
-        EnsureIndex();
+        var current = GetIndex();
         itemId = 0;
         name = string.Empty;
 
@@ -119,19 +106,14 @@ public sealed class ItemResolver
             return false;
         }
 
-        if (TryParseItemId(normalizedInput, out var parsedId) && namesById is not null && namesById.TryGetValue(parsedId, out var parsedName))
+        if (TryParseItemId(normalizedInput, out var parsedId) && current.NamesById.TryGetValue(parsedId, out var parsedName))
         {
             itemId = parsedId;
             name = parsedName;
             return true;
         }
 
-        if (indexedItems is null || normalizedItems is null)
-        {
-            return false;
-        }
-
-        var match = indexedItems.FirstOrDefault(x => x.Name.Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
+        var match = current.Items.FirstOrDefault(x => x.Name.Equals(normalizedInput, StringComparison.OrdinalIgnoreCase));
         if (match.Id != 0)
         {
             itemId = match.Id;
@@ -140,7 +122,7 @@ public sealed class ItemResolver
         }
 
         var key = NormalizeLookupToken(normalizedInput);
-        if (!string.IsNullOrWhiteSpace(key) && normalizedItems.TryGetValue(key, out var candidates) && candidates.Count > 0)
+        if (!string.IsNullOrWhiteSpace(key) && current.ByKey.TryGetValue(key, out var candidates) && candidates.Count > 0)
         {
             var selected = candidates.OrderBy(x => x.Name.Length).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).First();
             itemId = selected.Id;
@@ -153,12 +135,11 @@ public sealed class ItemResolver
 
     public bool TryResolveRecipeToItem(uint recipeId, out uint itemId, out string itemName, out int amountPerCraft)
     {
-        EnsureIndex();
         itemId = 0;
         itemName = string.Empty;
         amountPerCraft = 1;
 
-        if (recipeToResultItem is not null && recipeToResultItem.TryGetValue(recipeId, out var mapped))
+        if (GetIndex().RecipeResults.TryGetValue(recipeId, out var mapped))
         {
             itemId = mapped.ItemId;
             itemName = mapped.ItemName;
@@ -169,25 +150,36 @@ public sealed class ItemResolver
         return false;
     }
 
-    private void EnsureIndex()
+    private Index GetIndex()
     {
-        if (indexedItems is not null && namesById is not null && normalizedItems is not null)
+        var existing = index;
+        if (existing is not null)
         {
-            return;
+            return existing;
         }
 
+        lock (indexLock)
+        {
+            index ??= BuildIndex();
+            return index;
+        }
+    }
+
+    private Index BuildIndex()
+    {
         var sheet = dataManager.GetExcelSheet<Item>();
         var recipeSheet = dataManager.GetExcelSheet<Recipe>();
-        namesById = new Dictionary<uint, string>();
-        indexedItems = new List<(uint Id, string Name)>();
-        normalizedItems = new Dictionary<string, List<(uint Id, string Name)>>(StringComparer.Ordinal);
-        recipeToResultItem = new Dictionary<uint, (uint ItemId, string ItemName, int Yield)>();
+        var namesById = new Dictionary<uint, string>();
+        var items = new List<IndexedItem>();
+        var byKey = new Dictionary<string, List<IndexedItem>>(StringComparer.Ordinal);
+        var hqCapable = new HashSet<uint>();
+        var recipeResults = new Dictionary<uint, (uint ItemId, string ItemName, int Yield)>();
 
         if (sheet is not null)
         {
             foreach (var row in sheet)
             {
-                if (row.RowId == 0)
+                if (row.RowId == 0 || row.ItemSearchCategory.RowId == 0)
                 {
                     continue;
                 }
@@ -198,47 +190,50 @@ public sealed class ItemResolver
                     continue;
                 }
 
-                namesById[row.RowId] = name;
-                indexedItems.Add((row.RowId, name));
-
                 var key = NormalizeLookupToken(name);
+                var indexed = new IndexedItem(row.RowId, name, key);
+                namesById[row.RowId] = name;
+                items.Add(indexed);
+                if (row.CanBeHq)
+                {
+                    hqCapable.Add(row.RowId);
+                }
+
                 if (string.IsNullOrWhiteSpace(key))
                 {
                     continue;
                 }
 
-                if (!normalizedItems.TryGetValue(key, out var list))
+                if (!byKey.TryGetValue(key, out var list))
                 {
-                    list = new List<(uint Id, string Name)>();
-                    normalizedItems[key] = list;
+                    list = new List<IndexedItem>();
+                    byKey[key] = list;
                 }
 
-                list.Add((row.RowId, name));
+                list.Add(indexed);
             }
         }
 
-        indexedItems = indexedItems.OrderBy(x => x.Name).ToList();
+        items = items.OrderBy(x => x.Name, StringComparer.Ordinal).ToList();
 
-        if (recipeSheet is null)
+        if (recipeSheet is not null)
         {
-            return;
+            foreach (var recipe in recipeSheet)
+            {
+                if (recipe.RowId == 0 || recipe.ItemResult.RowId == 0)
+                {
+                    continue;
+                }
+
+                var resultItemId = recipe.ItemResult.RowId;
+                if (namesById.TryGetValue(resultItemId, out var resultName))
+                {
+                    recipeResults[recipe.RowId] = (resultItemId, resultName, recipe.AmountResult);
+                }
+            }
         }
 
-        foreach (var recipe in recipeSheet)
-        {
-            if (recipe.RowId == 0 || recipe.ItemResult.RowId == 0)
-            {
-                continue;
-            }
-
-            var resultItemId = recipe.ItemResult.RowId;
-            if (!namesById.TryGetValue(resultItemId, out var resultName))
-            {
-                continue;
-            }
-
-            recipeToResultItem[recipe.RowId] = (resultItemId, resultName, recipe.AmountResult);
-        }
+        return new Index(namesById, items, byKey, hqCapable, recipeResults);
     }
 
     private static string CleanupInput(string value)
@@ -266,10 +261,10 @@ public sealed class ItemResolver
             return itemId > 0;
         }
 
-        var matches = System.Text.RegularExpressions.Regex.Matches(
+        var matches = Regex.Matches(
             value,
             @"(?<!\d)(?:item\s*id|id|#)\s*[:=]?\s*(\d+)(?!\d)|\((\d+)\)");
-        foreach (System.Text.RegularExpressions.Match match in matches)
+        foreach (Match match in matches)
         {
             var token = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
             if (uint.TryParse(token, out itemId) && itemId > 0)
@@ -303,4 +298,13 @@ public sealed class ItemResolver
 
         return string.Concat(cleaned.Where(char.IsLetterOrDigit));
     }
+
+    private readonly record struct IndexedItem(uint Id, string Name, string Key);
+
+    private sealed record Index(
+        Dictionary<uint, string> NamesById,
+        List<IndexedItem> Items,
+        Dictionary<string, List<IndexedItem>> ByKey,
+        HashSet<uint> HqCapable,
+        Dictionary<uint, (uint ItemId, string ItemName, int Yield)> RecipeResults);
 }
