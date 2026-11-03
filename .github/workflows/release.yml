@@ -13,6 +13,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -28,7 +30,7 @@ jobs:
           $ver = '${{ github.ref_name }}'
           invoke-expression 'dotnet build --no-restore --configuration Release --nologo -p:Version=$ver -p:FileVersion=$ver -p:AssemblyVersion=$ver'
       - name: Stage release package
-        run: Copy-Item bin/Release/AuxMarketboard/latest.zip AuxMarketboard.zip
+        run: Copy-Item AuxMarketboard/bin/x64/Release/AuxMarketboard/latest.zip AuxMarketboard.zip
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
         with:
