@@ -8,9 +8,6 @@ namespace AuxMarketboard.UI;
 
 internal static class UiFormat
 {
-    private const float TabPaddingX = 14f;
-    private const float TabGap = 4f;
-    private const float ChipPaddingY = 3f;
     private const float MarkerWidth = 3f;
     private const float MarkerHeight = 12f;
     private const float MarkerGap = 6f;
@@ -70,25 +67,6 @@ internal static class UiFormat
         }
 
         return candidates[^1];
-    }
-
-    public static float TabsWidth(string[] labels)
-    {
-        var total = 0f;
-        foreach (var label in labels)
-        {
-            total += ImGui.CalcTextSize(label).X + TabPaddingX * 2f * Scale + TabGap * Scale;
-        }
-
-        return Math.Max(0f, total - TabGap * Scale);
-    }
-
-    public static float ChipHeight()
-    {
-        using (AuxFonts.PushSmallBold())
-        {
-            return ImGui.GetTextLineHeight() + ChipPaddingY * 2f * Scale;
-        }
     }
 
     public static void AddText(Vector2 position, Vector4 color, string text)

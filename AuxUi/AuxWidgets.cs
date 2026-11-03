@@ -421,20 +421,22 @@ public static class AuxWidgets
         drawList.PopClipRect();
     }
 
-    public static void Gauge(float fraction, Vector4 color, float width = 0f, float height = 0f)
+    public static float TabsWidth(string[] labels)
     {
-        var min = ImGui.GetCursorScreenPos();
-        var size = new Vector2(width > 0f ? width : ImGui.GetContentRegionAvail().X, height > 0f ? height : ImGui.GetFrameHeight());
-        Gauge(min, min + size, fraction, color);
+        var total = 0f;
+        foreach (var label in labels)
+        {
+            total += ImGui.CalcTextSize(label).X + TabPaddingX * 2f * Scale + TabGap * Scale;
+        }
+
+        return Math.Max(0f, total - TabGap * Scale);
     }
 
-    public static void Gauge(Vector2 min, Vector2 max, float fraction, Vector4 color)
+    public static float ChipHeight()
     {
-        var (fillMin, fillMax) = AuxGauge.FillRect(min, max, fraction);
-        if (fillMax.X > fillMin.X)
+        using (AuxFonts.PushSmallBold())
         {
-            var radius = Math.Min((fillMax.Y - fillMin.Y) / 4f, (fillMax.X - fillMin.X) / 4f);
-            ImGui.GetWindowDrawList().AddRectFilled(fillMin, fillMax, ImGui.GetColorU32(color), radius);
+            return ImGui.GetTextLineHeight() + ChipPaddingY * 2f * Scale;
         }
     }
 

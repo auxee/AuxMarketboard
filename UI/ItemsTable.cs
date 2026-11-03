@@ -149,7 +149,7 @@ internal sealed class ItemsTable
 
     private void DrawStatus(ShoppingEntry entry, MarketSnapshot snapshot, bool busy, bool covered, ItemSummary? summary)
     {
-        var offset = (ImGui.GetFrameHeight() - UiFormat.ChipHeight()) / 2f;
+        var offset = (ImGui.GetFrameHeight() - AuxWidgets.ChipHeight()) / 2f;
         if (offset > 0f)
         {
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + offset);

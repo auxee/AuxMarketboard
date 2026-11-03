@@ -174,7 +174,7 @@ internal sealed class BuyPlanTab
 
         if (isHome)
         {
-            ImGui.SetCursorScreenPos(new Vector2(x, min.Y + (height - UiFormat.ChipHeight()) / 2f));
+            ImGui.SetCursorScreenPos(new Vector2(x, min.Y + (height - AuxWidgets.ChipHeight()) / 2f));
             AuxWidgets.StatusChip("Home", true);
         }
 

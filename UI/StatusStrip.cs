@@ -23,7 +23,7 @@ internal static class StatusStrip
 
         var gap = 14f * UiFormat.Scale;
         var textY = UiFormat.CenteredTextY(start.Y, height);
-        var left = start.X + UiFormat.TabsWidth(ScopeLabels) + gap;
+        var left = start.X + AuxWidgets.TabsWidth(ScopeLabels) + gap;
         var right = start.X + available;
 
         var scope = service.Scope;
